@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  spring-boot-app:
+    build:
+      context: C:/Users/USER/Documents/github/javakot/Hr-Auto-Assigner-Task-Hours-Forecast
+      dockerfile: Dockerfile         #루트에 존재하는 도커파일
+    environment:
+      SPRING_PROFILES_ACTIVE: dev  # 'dev' 프로파일 활성화
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${MYSQL_DB_NAME}  # MySQL URL
+      SPRING_DATASOURCE_PASSWORD: 57575han  # MySQL 비밀번호
+#      SPRING_RABBITMQ_HOST: rabbitmq  # RabbitMQ 호스트
+#      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/advertise-db  # MongoDB URL
+    ports:
+      - "8050:8050"  # Spring Boot 서버 포트를 외부에 노출
+    depends_on:
+      - redis
+#      - rabbitmq
+    networks:
+      - hr-auto-assigner-network
+
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+#    container_name: elasticsearch
+#    ports:
+#      - "${ES_PORT}:${ES_PORT}"
+#      - "${CLUSTER_ES_PORT}:${CLUSTER_ES_PORT}"
+#    volumes:
+#      - ./data/elasticsearch:/usr/share/elasticsearch/data
+#    environment:
+#      discovery.type: single-node
+#      ELASTIC_USERNAME: "jinhan"  # 환경 변수 설정 필요
+#      ELASTIC_PASSWORD: "57575han"
+#      xpack.security.enabled: false
+#      xpack.security.enrollment.enabled: false
+#    networks:
+#      - hr-auto-assigner-network  # 다른 서비스와 통신하기 위한 네트워크 연결
+#    expose:
+#      - "${ES_PORT}" ## - 외부 접속 시 REST API 호출을 위한 포트
+#      - "${CLUSTER_ES_PORT}" ## - 클러스터 통신용 포트.
+
+  redis:
+    image: redis:7
+    container_name: hr-redis-server
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - hr-auto-assigner-network
+
+#  rabbitmq:
+#    image: rabbitmq:3-management
+#    container_name: rabbitmq
+#    ports:
+#      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"  # RabbitMQ 서버 포트
+#      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"  # 관리 콘솔 포트
+#    environment:
+#      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}  # 기본 사용자 이름
+#      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}  # 기본 사용자 비밀번호
+#    volumes:
+#      - rabbitmq_data:/var/lib/rabbitmq
+#    networks:
+#      - hr-auto-assigner-network  # 다른 서비스와 통신하기 위한 네트워크 연결
+
+
+networks:
+  hr-auto-assigner-network: ## hr-auto-assigner-network로 연결
+    external: true  # 외부 네트워크 사용 선언
+    name: hr-auto-assigner-network # hr-auto-assigner-network 명칭으로 네트워크상에서 설정 또는 연결
+    driver: bridge
+
+
+volumes:
+  db_data:  # MySQL 데이터
+#  es-data:  # Elasticsearch 데이터
+#  mongo_data:  # MongoDB 데이터
+  redis-data:  # Redis 데이터
+#  rabbitmq_data:  # RabbitMQ 데이터

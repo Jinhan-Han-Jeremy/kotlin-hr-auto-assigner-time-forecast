@@ -2,16 +2,16 @@ package org.github.hrautoassignertaskhoursforecast.web
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.github.hrautoassignertaskhoursforecast.Task.application.TaskMapper
-import org.github.hrautoassignertaskhoursforecast.Task.infrastructure.jdbc.TaskRepository
-import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.dto.TeamMemberRequestDTO
-import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.dto.TeamMemberResponseDTO
-import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.dto.TeamMemberSearchDTO
-import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.service.FilteredMembers
-import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.service.TeamMemberService
+import org.github.hrautoassignertaskhoursforecast.task.application.TaskMapper
+import org.github.hrautoassignertaskhoursforecast.task.infrastructure.jdbc.TaskRepository
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.dto.TeamMemberRequestDTO
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.dto.TeamMemberResponseDTO
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.dto.TeamMemberSearchDTO
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.service.FilteredMembers
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.service.TeamMemberService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.service.TeamMemberRankingService
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.service.TeamMemberRankingService
 import org.springframework.http.HttpStatus
 
 @RestController

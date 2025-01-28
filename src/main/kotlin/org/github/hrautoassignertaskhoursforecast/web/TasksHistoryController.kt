@@ -1,12 +1,11 @@
 package org.github.hrautoassignertaskhoursforecast.web
 
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.TasksHistoryMapper
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.dto.TasksHistoryRequest
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.dto.TasksHistoryResponse
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service.TasksHistoryManipulator
+import org.github.hrautoassignertaskhoursforecast.taskHistory.application.TasksHistoryMapper
+import org.github.hrautoassignertaskhoursforecast.taskHistory.application.dto.TasksHistoryRequest
+import org.github.hrautoassignertaskhoursforecast.taskHistory.application.dto.TasksHistoryResponse
+import org.github.hrautoassignertaskhoursforecast.taskHistory.application.service.TasksHistoryManipulator
 
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service.TasksHistoryService
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.infrastructure.jdbc.TasksHistoryRepository
+import org.github.hrautoassignertaskhoursforecast.taskHistory.application.service.TasksHistoryService
 import org.github.hrautoassignertaskhoursforecast.global.TaskState
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity

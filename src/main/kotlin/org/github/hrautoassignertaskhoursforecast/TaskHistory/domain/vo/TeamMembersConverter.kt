@@ -1,15 +1,15 @@
 package org.github.hrautoassignertaskhoursforecast.TaskHistory.domain.vo
 
-import org.github.hrautoassignertaskhoursforecast.Task.domain.entity.vo.EmployeeRoles
 import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Converter
 
 @Converter(autoApply = false)
 class TeamMembersConverter : AttributeConverter<TeamMembersVO, String> {
     override fun convertToDatabaseColumn(attribute: TeamMembersVO?): String? {
-        return attribute?.members?.joinToString(",")
+        return attribute?.membersNames?.joinToString(",")
     }
 
+    // DB에 사용한데이터를 표현
     override fun convertToEntityAttribute(dbData: String?): TeamMembersVO? {
         return dbData
             ?.takeIf { it.isNotBlank() }

@@ -21,15 +21,6 @@ class TaskService(
 ) {
 
     /**
-     * 모든 Task 조회 */
-    @Transactional(readOnly = true)
-    suspend fun findAllTasks(): List<TaskResponseDTO> =
-        withContext(Dispatchers.IO) {
-
-            taskRepository.findAll().map { taskMapper.toResponseDto(it) }
-        }
-
-    /**
      * 새로운 작업 생성 */
     @Transactional
     suspend fun createTask(requestDTO: TaskRequestDTO): TaskResponseDTO =
@@ -39,6 +30,7 @@ class TaskService(
         val savedTask = taskRepository.save(newTaskEntity)
         taskMapper.toResponseDto(savedTask)
     }
+
     /**
      * 작업 업데이트 */
     @Transactional
@@ -58,7 +50,6 @@ class TaskService(
             val savedTask = taskRepository.save(existingTask)
             taskMapper.toResponseDto(savedTask)
         }
-
     /**
      * 작업 삭제 */
     @Transactional
@@ -68,6 +59,15 @@ class TaskService(
             val task = taskRepository.findById(id)
                 .orElseThrow { NoSuchElementException("Task with ID $id not found") }
             taskRepository.delete(task)
+        }
+
+    /**
+     * 모든 Task 조회 */
+    @Transactional(readOnly = true)
+    suspend fun findAllTasks(): List<TaskResponseDTO> =
+        withContext(Dispatchers.IO) {
+
+            taskRepository.findAll().map { taskMapper.toResponseDto(it) }
         }
 
     /**
@@ -122,7 +122,7 @@ class TaskService(
     }
 
     @Transactional(readOnly = true)
-    suspend fun searchTasksByInput(criteria: TaskSearchDTO): List<TaskResponseDTO> = withContext(Dispatchers.IO) {
+    suspend fun searchTasks(criteria: TaskSearchDTO): List<TaskResponseDTO> = withContext(Dispatchers.IO) {
         var spec: Specification<Task> = Specification.where(null)
 
         //taskName 조건

@@ -59,19 +59,6 @@ class TeamMemberService(
     }
 
 
-    @Transactional(readOnly = true)
-    suspend fun getAllTeamMembers(): List<TeamMemberResponseDTO> =
-        withContext(Dispatchers.IO) {
-        val members = teamMemberRepository.findAll()
-        members.forEach { member ->
-            logger.debug("DB Data - ID: ${member.id}")
-            logger.debug("DB Data - Name: ${member.teamMemberName}")
-            logger.debug("DB Data - Role: ${member.teamMemberRole}")
-            logger.debug("DB Data - Performances: ${member.performancesForTasks}")
-        }
-        members.map { teamMemberMapper.toResponseDto(it) }
-    }
-
     /**
      * 팀원 삭제
      * @param id 삭제할 팀원의 ID
@@ -88,6 +75,19 @@ class TeamMemberService(
 
         logger.info("Successfully deleted team member with ID: $id")
         true
+    }
+
+    @Transactional(readOnly = true)
+    suspend fun findAllTeamMembers(): List<TeamMemberResponseDTO> =
+        withContext(Dispatchers.IO) {
+        val members = teamMemberRepository.findAll()
+        members.forEach { member ->
+            logger.debug("DB Data - ID: ${member.id}")
+            logger.debug("DB Data - Name: ${member.teamMemberName}")
+            logger.debug("DB Data - Role: ${member.teamMemberRole}")
+            logger.debug("DB Data - Performances: ${member.performancesForTasks}")
+        }
+        members.map { teamMemberMapper.toResponseDto(it) }
     }
 
     suspend fun addPerformanceForTask(id: Long, newPerformances: Map<String, Int>): TeamMemberResponseDTO =
@@ -135,12 +135,24 @@ class TeamMemberService(
     }
 
     /**
+     * 이름으로 팀원 조회
+     * - 이름을 기반으로 팀원들을 검색하고 DTO 리스트로 변환
+     */
+    @Transactional(readOnly = true)
+    suspend fun findTeamMemberByName(name: String): TeamMemberResponseDTO =
+        withContext(Dispatchers.IO) {
+
+            val member = teamMemberRepository.findByTeamMemberNameContaining(name)
+            teamMemberMapper.toResponseDto(member)
+        }
+
+    /**
      * ID로 팀원 조회
      * - 특정 ID를 가진 팀원을 데이터베이스에서 조회
      * - 존재하지 않으면 예외 발생
      */
     @Transactional(readOnly = true)
-    suspend fun getTeamMemberById(id: Long): TeamMemberResponseDTO =
+    suspend fun findTeamMemberById(id: Long): TeamMemberResponseDTO =
         withContext(Dispatchers.IO) {
         val member = teamMemberRepository.findById(id).orElseThrow {
             NoSuchElementException("Team member with ID $id not found.")
@@ -148,24 +160,12 @@ class TeamMemberService(
         teamMemberMapper.toResponseDto(member)
     }
 
-    suspend fun getScoresForTasks(memberName: String, taskType: String): Double =
+    suspend fun getScoreForTask(memberName: String, taskName: String): Double =
         withContext(Dispatchers.IO) {
             val member = teamMemberRepository.findByTeamMemberNameContaining(memberName)
-            val score = member.performancesForTasks.getScoreByTask(taskType)
+            val score = member.performancesForTasks.getScoreByTask(taskName)
             score!!.toDouble() // Int를 Double로 변환
         }
-
-    /**
-     * 이름으로 팀원 조회
-     * - 이름을 기반으로 팀원들을 검색하고 DTO 리스트로 변환
-     */
-    @Transactional(readOnly = true)
-    suspend fun getTeamMemberByName(name: String): TeamMemberResponseDTO =
-        withContext(Dispatchers.IO) {
-
-            val member = teamMemberRepository.findByTeamMemberNameContaining(name)
-        teamMemberMapper.toResponseDto(member)
-    }
 
     @Transactional(readOnly = true)
     suspend fun searchTeamMembers(criteria: TeamMemberSearchDTO): List<TeamMemberResponseDTO> {

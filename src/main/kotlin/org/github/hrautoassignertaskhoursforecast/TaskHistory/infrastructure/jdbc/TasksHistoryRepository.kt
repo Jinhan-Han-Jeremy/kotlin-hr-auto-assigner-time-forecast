@@ -23,7 +23,8 @@ interface TasksHistoryRepository: JpaRepository<TasksHistory, Long>, JpaSpecific
         nativeQuery = true)
     fun findAllByTeamMembers(@Param("name") name: String): List<TasksHistory>
 
-    fun findByTeamMembers(teamMemberName: String): TasksHistory
+    fun findByName(name: String): TasksHistory
+    fun findByTeamMembersContains(teamMemberName: String): List<TasksHistory>
     fun findAllByNameContainingIgnoreCase(name: String): List<TasksHistory>
     fun findAllByState(state: TaskState): List<TasksHistory>
 

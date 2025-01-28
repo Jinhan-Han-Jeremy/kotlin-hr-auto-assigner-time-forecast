@@ -17,9 +17,13 @@ enum class TaskState(val value: String) {
 
     companion object {
         fun from(status: String): TaskState {
-            return values().find { it.value.equals(status, ignoreCase = true) }
-                ?: throw IllegalArgumentException("Invalid status: $status")
-        }
+            val lower = status.lowercase()
+            return when {
+                lower.startsWith("not_started") || lower.startsWith("not started") -> NOT_STARTED
+                lower.startsWith("in_progress") || lower.startsWith("in progress") -> IN_PROGRESS
+                lower.startsWith("done") -> DONE
+                else -> throw IllegalArgumentException("Invalid status: $status")
+            }
     }
 }
 
@@ -31,6 +35,19 @@ class TaskStateConverter : AttributeConverter<TaskState, String> {
 
     override fun convertToEntityAttribute(dbData: String?): TaskState? {
         if (dbData == null) return null
-        return TaskState.from(dbData)
+        print("dbData wht is :$dbData")
+
+        val lower = dbData.lowercase()
+        // 만약 lower가 "done"으로 시작하면 => DONE
+        if (lower.startsWith("done")) {
+            return TaskState.DONE
+        } else if (lower.contains("not started")) {
+            return TaskState.NOT_STARTED
+        } else if (lower.contains("in progress")) {
+            return TaskState.IN_PROGRESS
+        }
+        else
+            return null
     }
+}
 }

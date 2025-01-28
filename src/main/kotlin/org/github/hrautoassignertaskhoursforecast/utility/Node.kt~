@@ -1,7 +1,0 @@
-package org.github.hrautoassignertaskhoursforecast.utility
-
-internal class Node {
-    val children: MutableMap<Char, Node> = mutableMapOf()
-    val taskNames: MutableSet<String> = mutableSetOf()
-    var isEndOfWord: Boolean = false
-}

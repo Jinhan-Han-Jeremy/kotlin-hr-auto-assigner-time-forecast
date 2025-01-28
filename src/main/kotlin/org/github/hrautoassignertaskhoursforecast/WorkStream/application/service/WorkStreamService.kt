@@ -2,11 +2,10 @@ package org.github.hrautoassignertaskhoursforecast.WorkStream.application.servic
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.github.hrautoassignertaskhoursforecast.Task.domain.entity.Task
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.TasksHistoryMapper
+import org.github.hrautoassignertaskhoursforecast.Task.application.dto.TaskResponseDTO
+
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.dto.TasksHistoryRequest
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service.TasksHistoryService
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.domain.entity.TasksHistory
 import org.github.hrautoassignertaskhoursforecast.WorkStream.application.WorkStreamMapper
 import org.github.hrautoassignertaskhoursforecast.WorkStream.application.dto.AnalyzedWorkStreamResponse
 import org.github.hrautoassignertaskhoursforecast.WorkStream.application.dto.TaskPairDto
@@ -14,24 +13,23 @@ import org.github.hrautoassignertaskhoursforecast.WorkStream.application.dto.Wor
 import org.github.hrautoassignertaskhoursforecast.WorkStream.application.dto.WorkStreamResponse
 import org.github.hrautoassignertaskhoursforecast.WorkStream.infrastructure.jdbc.WorkStreamRepository
 import org.github.hrautoassignertaskhoursforecast.global.FastApiService
+import org.github.hrautoassignertaskhoursforecast.global.RoleType
 import org.github.hrautoassignertaskhoursforecast.global.TaskState
 import org.github.hrautoassignertaskhoursforecast.global.exception.ResourceNotFoundException
 import org.springframework.stereotype.Service
-import java.time.LocalDate
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class WorkStreamService(
     private val workStreamRepository: WorkStreamRepository,
     private val workStreamMapper: WorkStreamMapper,
     private val fastApiService: FastApiService,
-    private val taskProcessorFacade: TaskProcessorFacade,
-    private val taskHistoryService: TasksHistoryService
+    private val taskProcessorFacade: TaskProcessorFacade
 ) {
 
     /** DB에서 Task 목록을 불러온 뒤 null인 TaskName은 제외한 리스트 반환
      */
-    private fun fetchTaskNamesFromDb(): List<String> {
-
+    suspend private fun fetchTaskNamesFromDb(): List<String> {
 
         val unsavedTasksNamesInWorkStream = taskProcessorFacade.getUnsavedTaskNames()
         if (unsavedTasksNamesInWorkStream.isEmpty()) {
@@ -39,6 +37,13 @@ class WorkStreamService(
         }
         return unsavedTasksNamesInWorkStream
     }
+
+    @Transactional(readOnly = true)
+    suspend fun findAllWorkStream(): List<WorkStreamResponse> =
+        withContext(Dispatchers.IO) {
+
+            workStreamRepository.findAll().map { workStreamMapper.toResponseDto(it) }
+        }
 
     /** FastAPI를 호출하여 분석된 추천 Task 목록 받기
      */
@@ -48,71 +53,48 @@ class WorkStreamService(
         return taskNames
     }
 
-//    suspend fun taskPairsAssignInTasksHistory(workInfo: String, ids: List<Long>):  WorkStreamResponse =
-//        withContext(Dispatchers.IO) {
-//            val tasks = taskProcessorFacade.getTasksByIds(ids)
-//
-//            val taskPairs = tasks.map { TaskPairDto(id = it.id, name = it.taskName) }
-//
-//            tasks.map{it.employeeRoles.roles.map { it.displayName}}
-//
-//            val taskHistoryRequests: List<TasksHistoryRequest> =
-//
-//            val name: String,
-//            val teamMembers: List<String>? = null, // 팀원 이름 리스트
-//            val employeeRoles: List<String> = emptyList(), // 직무 리스트
-//            val spendingDays: Float? = null,
-//            val expectedDays: Float? = null,
-//            val state: TaskState,
-//            val requirementsSatisfied: Boolean? = null,
-//            val startedAt: LocalDate? = null,
-//            val endedAt: LocalDate? = null
-//
-//             val teamMembers: List<String>? = null, // 팀원 이름 리스트
-//             val spendingDays: Float? = null,
-//             val expectedDays: Float? = null,
-//             val state: TaskState,
-//             val requirementsSatisfied: Boolean? = null,
-//             val startedAt: LocalDate? = null,
-//             val endedAt: LocalDate? = null
-//
-//            val distinctEmployeeRoles = tasks.flatMap { it.employeeRoles.roles }.distinct()
-//
-//            val taskHistoryRequest = TasksHistoryRequest(
-//                name = taskPairs.first().name,
-//                teamMembers, employeeRoles = distinctEmployeeRoles, spendingDays, expectedDays, state
-//            )
-//
-//             val requestDTO = TasksHistoryMapper.toRequestDto(taskHistoryRequests)
-//            val newTaskEntity = TasksHistoryMapper.toEntity(requestDTO)
-//            taskHistoryService.createTaskHistory(newTaskEntity)
-//
-//             val workStreamRequest = WorkStreamRequest(
-//                workInfo,
-//                distinctEmployeeRoles.toString()
-//            )
-//
-//             createWorkStream(workStreamRequest)
-//        }
-
-    suspend fun RequirementsSatisfied(task :Task): Boolean =
+    // db에 분석된 새로운 task들 할당
+    suspend fun tasksAndWorkInfoAssignInTasksHistory(workInfo: String, ids: List<Long>):  WorkStreamResponse =
         withContext(Dispatchers.IO) {
+            // Tasks 조회
+            val tasks = taskProcessorFacade.getTasksByIds(ids)
 
-            // done상태의 taskHistory 이름 리스트
-            val tasksHistoryByDone = taskHistoryService.findAllByState(TaskState.DONE)
+            print("tasksAndWorkInfoAssignInTasksHistory tasks:$tasks")
 
-            val requirementsList = task.requirements?.requirementsList ?: emptyList()
+            val taskHistoryRequests: List<TasksHistoryRequest> =
+                tasks.map { task ->
+                    TasksHistoryRequest(
+                        name = task.taskName,
+                        teamMembers = null,
+                        employeeRoles = task.employeeRoles.roles.map { it.displayName },
+                        spendingDays = null,
+                        expectedDays = null,
+                        state = TaskState.NOT_STARTED,
+                        requirementsSatisfied = taskProcessorFacade.getRequirementsSatisfiedById(task.id),
+                        startedAt = null,
+                        endedAt = null
+                        )
+                }
 
-            when {
-                requirementsList.all { it in tasksHistoryByDone.map{ it.name}} -> true
-                else -> false
-            }
+            val distinctEmployeeRoles = tasks.flatMap { it.employeeRoles.roles }.distinct()
+
+            //TaskHistory 할당
+            taskProcessorFacade.createTaskHistoriesByRequests(taskHistoryRequests)
+
+            // WorkStream 생성
+            createWorkStream(workInfo, distinctEmployeeRoles)
+
         }
 
-    suspend fun createWorkStream(requestDTO: WorkStreamRequest):  WorkStreamResponse =
+    suspend fun createWorkStream(workInfo: String, distinctEmployeeRoles: List<RoleType>):  WorkStreamResponse =
         withContext(Dispatchers.IO) {
 
-            val newTaskEntity = workStreamMapper.toEntity(requestDTO)
+            val workStreamRequest = WorkStreamRequest(
+                workInfo,
+                distinctEmployeeRoles.toString()
+            )
+
+            val newTaskEntity = workStreamMapper.toEntity(workStreamRequest)
             val savedWorkedStream = workStreamRepository.save(newTaskEntity)
 
             workStreamMapper.toResponseDto(savedWorkedStream)
@@ -164,19 +146,21 @@ class WorkStreamService(
         )
     }
 
-
     private fun extractPrefix(workInfo: String): String {
         // 공백으로 분리한 첫 5단어를 접두사로 사용
         return workInfo.split(" ").take(5).joinToString(" ")
     }
 
-    fun getWorkStreamById(id: Int): WorkStreamResponse {
+    suspend fun getWorkStreamById(id: Int): WorkStreamResponse =
+        withContext(Dispatchers.IO) {
         val workStream = workStreamRepository.findById(id)
             .orElseThrow { IllegalArgumentException("WorkStream with ID $id not found") }
-        return workStreamMapper.toResponseDto(workStream)
+
+            workStreamMapper.toResponseDto(workStream)
     }
 
-    fun getAllWorkStreams(): List<WorkStreamResponse> {
-        return workStreamRepository.findAll().map { workStreamMapper.toResponseDto(it) }
+    suspend fun getAllWorkStreams(): List<WorkStreamResponse> =
+        withContext(Dispatchers.IO) {
+            workStreamRepository.findAll().map { workStreamMapper.toResponseDto(it) }
     }
 }

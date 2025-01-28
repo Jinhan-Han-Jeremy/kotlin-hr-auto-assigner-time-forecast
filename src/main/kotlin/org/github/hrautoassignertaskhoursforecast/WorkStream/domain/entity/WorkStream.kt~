@@ -4,7 +4,7 @@ import jakarta.persistence.*
 import org.hibernate.annotations.NaturalId
 
 @Entity
-@Table(name = "workstream_info")
+@Table(name = "workstream")
 data class WorkStream(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

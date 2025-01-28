@@ -3,9 +3,12 @@ package org.github.hrautoassignertaskhoursforecast.web
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.TasksHistoryMapper
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.dto.TasksHistoryRequest
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.dto.TasksHistoryResponse
+import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service.TasksHistoryManipulator
 
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service.TasksHistoryService
+import org.github.hrautoassignertaskhoursforecast.TaskHistory.infrastructure.jdbc.TasksHistoryRepository
 import org.github.hrautoassignertaskhoursforecast.global.TaskState
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
@@ -14,21 +17,36 @@ import java.time.LocalDate
 @RequestMapping("/tasks-history")
 class TasksHistoryController(
     private val tasksHistoryService: TasksHistoryService,
+    private val tasksHistoryManipulator: TasksHistoryManipulator,
     private val tasksHistoryMapper: TasksHistoryMapper
 ) {
-    @PostMapping
-    suspend fun createTasksHistory(@RequestBody request: TasksHistoryRequest): ResponseEntity<TasksHistoryResponse> {
-        val entity = tasksHistoryMapper.toEntity(request)
-        val savedEntity = tasksHistoryService.createTaskHistory(entity)
-        val response = tasksHistoryMapper.toResponse(savedEntity)
+    @GetMapping
+    suspend fun findAll(): ResponseEntity<List<TasksHistoryResponse>> {
+        val tasks = tasksHistoryService.findAll()
+        val response = tasks.map { tasksHistoryMapper.toResponse(it) }
         return ResponseEntity.ok(response)
     }
 
-    @GetMapping("/{id}")
-    suspend fun getTasksHistory(@PathVariable id: Long): ResponseEntity<TasksHistoryResponse> {
-        val entity = tasksHistoryService.findById(id)
-        val response = tasksHistoryMapper.toResponse(entity)
-        return ResponseEntity.ok(response)
+    @PostMapping
+    suspend fun createTasksHistory(@RequestBody request: TasksHistoryRequest): ResponseEntity<TasksHistoryResponse> {
+        val savedEntity = tasksHistoryService.createTaskHistory(request)
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedEntity)
+    }
+
+    @PutMapping
+    suspend fun updateAchievementsScore(
+        @RequestParam historyName: String      // 히스토리 이름
+    ): ResponseEntity<String> {
+        return try {
+            // 점수 업데이트 로직 호출
+            tasksHistoryManipulator.updateTeamMemberAchievementsScore(historyName)
+
+            // 성공 메시지 반환
+            ResponseEntity.ok("Achievements scores updated successfully.")
+        } catch (e: Exception) {
+            // 예외 처리 및 에러 메시지 반환
+            ResponseEntity.badRequest().body("Failed to update achievements scores: ${e.message}")
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -37,10 +55,10 @@ class TasksHistoryController(
         return ResponseEntity.noContent().build()
     }
 
-    @GetMapping
-    suspend fun findAll(): ResponseEntity<List<TasksHistoryResponse>> {
-        val tasks = tasksHistoryService.findAll()
-        val response = tasks.map { tasksHistoryMapper.toResponse(it) }
+    @GetMapping("/{id}")
+    suspend fun getTasksHistory(@PathVariable id: Long): ResponseEntity<TasksHistoryResponse> {
+        val entity = tasksHistoryService.findById(id)
+        val response = tasksHistoryMapper.toResponse(entity)
         return ResponseEntity.ok(response)
     }
 

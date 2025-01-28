@@ -6,7 +6,7 @@ import org.github.hrautoassignertaskhoursforecast.TaskHistory.domain.vo.TeamMemb
 import jakarta.persistence.*
 import org.github.hrautoassignertaskhoursforecast.Task.domain.entity.vo.EmployeeRoles
 import org.github.hrautoassignertaskhoursforecast.global.TaskState
-import org.github.hrautoassignertaskhoursforecast.global.TaskStateConverter
+import org.github.hrautoassignertaskhoursforecast.global.TaskState.TaskStateConverter
 import java.time.LocalDate
 
 @Entity
@@ -21,7 +21,7 @@ data class TasksHistory(
 
     @Convert(converter = TeamMembersConverter::class)
     @Column(name = "teammembers", length = 255)
-    val teamMembers: TeamMembersVO? = null,
+    var teamMembers: TeamMembersVO? = null,
 
     @Convert(converter = EmployeeRolesConverter::class)
     @Column(name = "available_jobs")

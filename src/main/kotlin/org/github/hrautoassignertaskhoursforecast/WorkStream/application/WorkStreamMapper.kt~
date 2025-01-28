@@ -33,7 +33,7 @@ class WorkStreamMapper {
         return AnalyzedWorkStreamResponse(
             workstream = workstream,
             tasksByTrieAnalysis = tasksByTrieAnalysis,
-            tasksByTextAnalysis = tasksByTextAnalysis,
+            tasksdByTextAnalysis = tasksByTextAnalysis,
             analyzedTasks = analyzedTasks
         )
     }

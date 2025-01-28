@@ -1,7 +1,9 @@
 package org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.github.hrautoassignertaskhoursforecast.TaskHistory.infrastructure.jdbc.TasksHistoryRepository
-import org.github.hrautoassignertaskhoursforecast.TaskHistory.domain.entity.TasksHistory
+import org.github.hrautoassignertaskhoursforecast.TaskHistory.domain.vo.TeamMembersConverter
 import org.github.hrautoassignertaskhoursforecast.TeamMembers.application.service.TeamMemberService
 import org.github.hrautoassignertaskhoursforecast.TeamMembers.infrastructure.jdbc.TeamMemberRepository
 import org.springframework.stereotype.Service
@@ -10,83 +12,133 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class TasksHistoryManipulator(
-    private val taskHistoryRepository: TasksHistoryRepository,
+    private val tasksHistoryRepository: TasksHistoryRepository,
     private val teamMemberRepository: TeamMemberRepository,
     private val teamMemberService: TeamMemberService
 ) {
 
     @Transactional
-    suspend fun updateTeamMemberAchievementsScore(teamMembersNames: String) {
-        val splittedNames = parseTeamMemberNames(teamMembersNames)
-        val allData = collectMemberData(splittedNames)
-        val totalSpeed = calculateTotalSpeed(allData)
-        val actualTime = getActualTime(allData)
-        val expectedTime = calculateExpectedTime(totalSpeed)
-        val difference = calculateDifference(actualTime, expectedTime)
+    suspend fun updateTeamMemberAchievementsScore(historyName: String) {
 
-        updateAchievementsScores(allData, totalSpeed, difference)
+        val teamMembersNames = getTeamMemberNamesFromHistoryName(historyName)
+        val splittedNamesList = parseTeamMemberNames(teamMembersNames)
+        val memberData = getMemberScoresWithHistory(splittedNamesList, historyName)
+        print("memberData.size() " + memberData.size + memberData.toString())
+        val actualTime = getRecordedHistoryTime(historyName)     //실제 소요 시간 가져오기
+        val expectedTime = getTotalCalculatedExpectedTime(memberData)    //이론적 소요 시간을 계산
+        val totalDifference = getCalculatedDifference(actualTime, expectedTime)  //실제 소요 시간과 이론적 소요 시간의 차이
+
+        updateAchievementsScores(memberData, totalDifference)
     }
 
-    //팀원 이름 파싱
+    //팀원 이름들 파싱
+    private suspend fun getTeamMemberNamesFromHistoryName(historyName: String): String=
+        withContext(Dispatchers.IO){
+
+        val taskHistory = tasksHistoryRepository.findByName(historyName)
+
+        taskHistory.teamMembers?.membersNames?.joinToString(",").toString()
+    }
+
+    //팀원 이름들 파싱
     private fun parseTeamMemberNames(teamMembersNames: String): List<String> {
-        return teamMembersNames
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
+        print("teamMembersNames "+teamMembersNames)
+        val teamMembersVO = TeamMembersConverter().convertToEntityAttribute(teamMembersNames)
+
+        return teamMembersVO?.membersNames ?: emptyList()
     }
 
+    //임시 멤버 정보 데이터
     data class MemberData(
         val singleName: String,
-        val history: TasksHistory,
-        val calculatedScore: Double
+        val historyName: String, // 해당 멤버이름이 포함된 TasksHistory
+        val expectedScore: Double,   // 업무 완수에 걸린 예측 시간
+        var recordedScore: Double // 업무 완수에 걸린 측정 시간
     )
 
-    //팀원의 작업 히스토리와 점수를 수집
-    private suspend fun collectMemberData(names: List<String>): List<MemberData> {
-        return names.map { singleName ->
-            val history = taskHistoryRepository.findByTeamMembers(singleName)
-            val calculatedScore = teamMemberService.getScoresForTasks(singleName, history.name)
-            MemberData(singleName, history, calculatedScore)
+    private suspend fun getMemberScoresWithHistory(memberNames: List<String>, historyName: String): List<MemberData> =
+        withContext(Dispatchers.IO) {
+            memberNames.map { memberName ->
+
+                // 작업 점수 계산
+                val score = teamMemberService.getScoreForTask(memberName, historyName)
+
+                // scores의 각 점수를 MemberData로 변환
+                MemberData(
+                    singleName = memberName,
+                    historyName = historyName,
+                    expectedScore = score,
+                    recordedScore = 0.0
+                )
+
+            }
+        }
+
+    //팀원들의 점수로 속도를 변환 EX) 1.0 / 2.0 + 1.0 / 3.0
+    private suspend fun getTotalSpeeddOfMembers(allData: List<MemberData>): Double =
+        withContext(Dispatchers.IO) {
+        allData.sumOf { member ->
+            if (member.expectedScore > 0) 1.0 / member.expectedScore else 0.0
         }
     }
 
-    //팀원들의 점수로부터 전체 속도를 계산
-    private fun calculateTotalSpeed(allData: List<MemberData>): Double {
-        return allData.sumOf { member ->
-            if (member.calculatedScore > 0) 1.0 / member.calculatedScore else 0.0
+    // 개인 속도 계산 함수
+    private suspend fun getCalculatePersonalSpeed(expectedScore: Double): Double =
+        withContext(Dispatchers.IO) {
+            if (expectedScore > 0) 1.0 / expectedScore else 0.0
         }
-    }
 
-    //실제 소요 시간 가져오기
-    private fun getActualTime(allData: List<MemberData>): Double {
-        return allData.first().history.spendingDays?.toDouble() ?: 0.0
+    // 개인 비율 계산 함수
+    private suspend fun calculateRatio(personalSpeed: Double, membersData: List<MemberData>): Double =
+        withContext(Dispatchers.IO) {
+            val totalSpeed = getTotalSpeeddOfMembers(membersData)
+            if (totalSpeed > 0) personalSpeed / totalSpeed else 0.0
     }
 
     //이론적 소요 시간을 계산
-    private fun calculateExpectedTime(totalSpeed: Double): Double {
+    private suspend fun getTotalCalculatedExpectedTime(membersData: List<MemberData>): Double {
+
+        val totalSpeed = getTotalSpeeddOfMembers(membersData)
         return if (totalSpeed > 0) 1.0 / totalSpeed else 0.0
     }
 
+    //실제 기록된 소요 시간
+    private suspend fun getRecordedHistoryTime(historyName: String): Double =
+        withContext(Dispatchers.IO) {
+            tasksHistoryRepository.findByName(historyName).spendingDays?.toDouble() ?: 0.0
+    }
+
+    //실제 기록된 소요 시간
+    private suspend fun getExpectedHistoryTime(historyName: String): Double =
+        withContext(Dispatchers.IO) {
+            tasksHistoryRepository.findByName(historyName).expectedDays?.toDouble() ?: 0.0
+        }
+
     //실제 소요 시간과 이론적 소요 시간의 차이를 계산
-    private fun calculateDifference(actualTime: Double, expectedTime: Double): Double {
+    private fun getCalculatedDifference(actualTime: Double, expectedTime: Double): Double {
         return actualTime - expectedTime
     }
 
-    //팀원의 AchievementsScore 업데이트
     private suspend fun updateAchievementsScores(
         allData: List<MemberData>,
-        totalSpeed: Double,
-        difference: Double
+        totalDifference: Double
     ) {
-        allData.forEach { (singleName, _, calculatedScore) ->
-            val personalSpeed = if (calculatedScore > 0) 1.0 / calculatedScore else 0.0
-            val ratio = if (totalSpeed > 0) personalSpeed / totalSpeed else 0.0
-            val personalDelay = difference * ratio
+        withContext(Dispatchers.IO) {
+            allData.forEach { member ->
+                print("member "+member.historyName + " "+member.singleName + " "+member.expectedScore)
+                val personalSpeed = getCalculatePersonalSpeed(member.expectedScore)
+                val ratio = calculateRatio(personalSpeed, allData)
+                val personalDelay = totalDifference * ratio
 
-            val teamMember = teamMemberRepository.findByTeamMemberName(singleName)
+                print("personalSpeed " + personalSpeed)
 
-            teamMember.achievementsScore = (teamMember.achievementsScore - personalDelay.toFloat())
-            teamMemberRepository.save(teamMember)
+                print("personalDelay "+ personalDelay)
+                val teamMember = teamMemberRepository.findByTeamMemberName(member.singleName)
+                teamMember.achievementsScore += personalDelay.toFloat()
+
+                teamMemberRepository.save(teamMember)
+            }
         }
     }
+
 }

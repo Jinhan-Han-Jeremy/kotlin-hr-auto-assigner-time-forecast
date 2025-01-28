@@ -17,7 +17,7 @@ class TasksHistoryMapper {
             employeeRoles = EmployeeRoles(request.employeeRoles.joinToString(",")),
             spendingDays = request.spendingDays,
             expectedDays = request.expectedDays,
-            state = TaskState.from(request.state.name),
+            state = TaskState.from(request.state.value),
             requirementsSatisfied = request.requirementsSatisfied,
             startedAt = request.startedAt,
             endedAt = request.endedAt
@@ -28,7 +28,7 @@ class TasksHistoryMapper {
         return TasksHistoryResponse(
             id = entity.id,
             name = entity.name,
-            teamMembers = entity.teamMembers?.members,
+            teamMembers = entity.teamMembers?.membersNames,
             employeeRoles = entity.employeeRoles.roles.map { it.displayName },
             spendingDays = entity.spendingDays,
             expectedDays = entity.expectedDays,

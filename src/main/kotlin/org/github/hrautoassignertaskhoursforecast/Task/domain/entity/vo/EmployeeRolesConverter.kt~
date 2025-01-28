@@ -6,7 +6,7 @@ import jakarta.persistence.Converter
 @Converter(autoApply = false)
 class EmployeeRolesConverter : AttributeConverter<EmployeeRoles, String> {
     override fun convertToDatabaseColumn(attribute: EmployeeRoles?): String {
-        return attribute?.getRolesStr() ?: ""
+        return attribute?.getRolesRaw() ?: ""
     }
 
     override fun convertToEntityAttribute(dbData: String?): EmployeeRoles {

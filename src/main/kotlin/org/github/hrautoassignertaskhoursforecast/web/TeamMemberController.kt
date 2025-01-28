@@ -24,6 +24,12 @@ class TeamMemberController(
     private val taskMapper: TaskMapper
 ) {
 
+    @GetMapping
+    suspend fun getAllTeamMembers(): ResponseEntity<List<TeamMemberResponseDTO>> {
+        val members = teamMemberService.findAllTeamMembers()
+        return ResponseEntity.ok(members)
+    }
+
     @PostMapping
     suspend fun createTeamMember(@RequestBody request: TeamMemberRequestDTO): ResponseEntity<TeamMemberResponseDTO> {
         val createdMember = teamMemberService.createTeamMember(request)
@@ -36,25 +42,25 @@ class TeamMemberController(
         return ResponseEntity.ok(updatedMember)
     }
 
-    @GetMapping
-    suspend fun getAllTeamMembers(): ResponseEntity<List<TeamMemberResponseDTO>> {
-        val members = teamMemberService.getAllTeamMembers()
-        return ResponseEntity.ok(members)
+    @DeleteMapping("/{id}")
+    suspend fun deleteTeamMember(@PathVariable id: Long): ResponseEntity<Void> {
+        teamMemberService.deleteTeamMember(id)
+        return ResponseEntity.noContent().build()
     }
+
 
     @GetMapping("/{id}")
     suspend fun getTeamMemberById(@PathVariable id: Long): ResponseEntity<TeamMemberResponseDTO> {
-        val member = teamMemberService.getTeamMemberById(id)
+        val member = teamMemberService.findTeamMemberById(id)
         return ResponseEntity.ok(member)
     }
 
 
     @GetMapping("/search/name")
     suspend fun getTeamMemberByName(@RequestParam name: String): ResponseEntity<TeamMemberResponseDTO> {
-        val member = teamMemberService.getTeamMemberByName(name)
+        val member = teamMemberService.findTeamMemberByName(name)
         return ResponseEntity.ok(member)
     }
-
 
     @GetMapping("/search")
     suspend fun searchTeamMembers(@ModelAttribute inputData: TeamMemberSearchDTO): ResponseEntity<List<TeamMemberSearchDTO>> {
@@ -72,12 +78,6 @@ class TeamMemberController(
         }
 
         return ResponseEntity.ok(response)
-    }
-
-    @DeleteMapping("/{id}")
-    suspend fun deleteTeamMember(@PathVariable id: Long): ResponseEntity<Void> {
-        teamMemberService.deleteTeamMember(id)
-        return ResponseEntity.noContent().build()
     }
 
     @GetMapping("/available")

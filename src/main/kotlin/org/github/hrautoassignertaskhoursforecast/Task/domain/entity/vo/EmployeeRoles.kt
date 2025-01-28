@@ -27,7 +27,7 @@ data class EmployeeRoles(
 
     /**
      * VO 내부에 저장된 쉼표 구분 문자열 반환 */
-    fun getRolesRaw(): String {
+    fun getRolesStr(): String {
         return rolesRaw
     }
 

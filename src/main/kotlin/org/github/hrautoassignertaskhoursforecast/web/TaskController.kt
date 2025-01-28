@@ -21,12 +21,6 @@ class TaskController(private val taskService: TaskService) {
         return ResponseEntity.ok(tasks)
     }
 
-    @GetMapping("/{id}")
-    suspend fun getTaskById(@PathVariable id: Long): ResponseEntity<TaskResponseDTO> {
-        val task = taskService.findTaskById(id)
-        return ResponseEntity.ok(task)
-    }
-
     @PostMapping
     suspend fun createTask(@Valid @RequestBody requestDTO: TaskRequestDTO): ResponseEntity<TaskResponseDTO> {
         val createdTask = taskService.createTask(requestDTO)
@@ -48,6 +42,12 @@ class TaskController(private val taskService: TaskService) {
         return ResponseEntity.noContent().build()
     }
 
+    @GetMapping("/{id}")
+    suspend fun getTaskById(@PathVariable id: Long): ResponseEntity<TaskResponseDTO> {
+        val task = taskService.findTaskById(id)
+        return ResponseEntity.ok(task)
+    }
+
     @GetMapping("/search/{roleType}")
     suspend fun getTasksByRole(@PathVariable roleType: String): ResponseEntity<List<TaskResponseDTO>> {
         val role = RoleType.values()
@@ -60,7 +60,7 @@ class TaskController(private val taskService: TaskService) {
 
     @GetMapping("/search")
     suspend fun searchTasks(@ModelAttribute inputData: TaskSearchDTO): ResponseEntity<List<TaskResponseDTO>> {
-        val tasks = taskService.searchTasks(inputData)
+        val tasks = taskService.searchTasksByInput(inputData)
         return ResponseEntity.ok(tasks)
     }
 

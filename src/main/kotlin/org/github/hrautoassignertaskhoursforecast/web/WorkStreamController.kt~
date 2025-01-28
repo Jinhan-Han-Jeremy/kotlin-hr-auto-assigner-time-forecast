@@ -19,9 +19,9 @@ class WorkStreamController(private val workStreamService: WorkStreamService) {
     private val log = LoggerFactory.getLogger(WorkStreamController::class.java)
 
     @GetMapping
-    suspend fun getAllWorkStreams(): ResponseEntity<List<WorkStreamResponse>> {
-        val response = workStreamService.getAllWorkStreams()
-        return ResponseEntity.ok(response)
+    suspend fun getAllTasks(): ResponseEntity<List<WorkStreamResponse>> {
+        val workStreams = workStreamService.findAllWorkStream()
+        return ResponseEntity.ok(workStreams)
     }
 
     @GetMapping("/analyzingworkstream")
@@ -34,6 +34,12 @@ class WorkStreamController(private val workStreamService: WorkStreamService) {
     @GetMapping("/{id}")
     suspend fun getWorkStreamById(@PathVariable id: Int): ResponseEntity<WorkStreamResponse> {
         val response = workStreamService.getWorkStreamById(id)
+        return ResponseEntity.ok(response)
+    }
+
+    @GetMapping
+    suspend fun getAllWorkStreams(): ResponseEntity<List<WorkStreamResponse>> {
+        val response = workStreamService.getAllWorkStreams()
         return ResponseEntity.ok(response)
     }
 

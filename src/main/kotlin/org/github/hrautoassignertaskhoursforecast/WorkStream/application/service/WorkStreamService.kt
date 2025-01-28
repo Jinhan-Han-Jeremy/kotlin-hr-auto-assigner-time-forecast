@@ -38,10 +38,8 @@ class WorkStreamService(
         return unsavedTasksNamesInWorkStream
     }
 
-    @Transactional(readOnly = true)
-    suspend fun findAllWorkStream(): List<WorkStreamResponse> =
+    suspend fun getAllWorkStreams(): List<WorkStreamResponse> =
         withContext(Dispatchers.IO) {
-
             workStreamRepository.findAll().map { workStreamMapper.toResponseDto(it) }
         }
 
@@ -157,10 +155,5 @@ class WorkStreamService(
             .orElseThrow { IllegalArgumentException("WorkStream with ID $id not found") }
 
             workStreamMapper.toResponseDto(workStream)
-    }
-
-    suspend fun getAllWorkStreams(): List<WorkStreamResponse> =
-        withContext(Dispatchers.IO) {
-            workStreamRepository.findAll().map { workStreamMapper.toResponseDto(it) }
     }
 }

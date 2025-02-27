@@ -62,7 +62,7 @@ class FilteredMembers(
         withContext(Dispatchers.IO) {
             getSelectedMembersForTask(selectedTask, NonfilterByLevel)
                 .sortedByDescending { it.performancesForTasks.getValue(selectedTask.taskName) }
-    }
+        }
 
 
     suspend fun getSelectedMembersForTask(

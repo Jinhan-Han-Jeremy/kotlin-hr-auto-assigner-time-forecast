@@ -64,6 +64,7 @@ class TeamMemberService(
         val existingMember = teamMemberRepository.findById(id)
             .orElseThrow { ResourceNotFoundException("Team member with ID $id not found.") }
 
+
         // 기존 멤버의 `isWorking`(state) 값만 변경
         val updatedMember = existingMember.copy(isWorking = newState)
 
@@ -82,7 +83,7 @@ class TeamMemberService(
      */
     suspend fun deleteTeamMember(id: Long): Boolean = withContext(Dispatchers.IO) {
         val member = teamMemberRepository.findById(id).orElseThrow {
-            ResourceNotFoundException("Team member with ID $id not found.")
+            NoSuchElementException("Team member with ID $id not found.")
         }
 
         logger.debug("Deleting team member - ID: ${member.id}, Name: ${member.teamMemberName}")
@@ -108,7 +109,7 @@ class TeamMemberService(
     suspend fun addPerformanceForTask(id: Long, newPerformances: Map<String, Int>): TeamMemberResponseDTO =
         withContext(Dispatchers.IO) {
         val member = teamMemberRepository.findById(id).orElseThrow {
-            ResourceNotFoundException("Team member with ID $id not found.")
+            NoSuchElementException("Team member with ID $id not found.")
         }
 
         member.performancesForTasks.updatePerformancesForTasks(newPerformances, true)
@@ -119,7 +120,7 @@ class TeamMemberService(
     suspend fun updateScoresForTasks(id: Long, type: String, score: Int): TeamMemberResponseDTO =
         withContext(Dispatchers.IO) {
         val member = teamMemberRepository.findById(id).orElseThrow {
-            ResourceNotFoundException("Team member with ID $id not found.")
+            NoSuchElementException("Team member with ID $id not found.")
         }
 
         member.performancesForTasks.setPerformanceForTask(type, score)
@@ -131,7 +132,7 @@ class TeamMemberService(
         withContext(Dispatchers.IO) {
 
         val member = teamMemberRepository.findById(id).orElseThrow {
-            ResourceNotFoundException("Team member with ID $id not found.")
+            NoSuchElementException("Team member with ID $id not found.")
         }
 
         member.performancesForTasks.setPerformanceNameForTask(type, newTypeName)
@@ -141,7 +142,7 @@ class TeamMemberService(
 
     suspend fun renewPerformancesForTasks(id: Long, newPerformances: Map<String, Int>): TeamMemberResponseDTO = withContext(Dispatchers.IO) {
         val member = teamMemberRepository.findById(id).orElseThrow {
-            ResourceNotFoundException("Team member with ID $id not found.")
+            NoSuchElementException("Team member with ID $id not found.")
         }
 
         member.performancesForTasks.updatePerformancesForTasks(newPerformances, false)
@@ -170,7 +171,7 @@ class TeamMemberService(
     suspend fun findTeamMemberById(id: Long): TeamMemberResponseDTO =
         withContext(Dispatchers.IO) {
         val member = teamMemberRepository.findById(id).orElseThrow {
-            ResourceNotFoundException("Team member with ID $id not found.")
+            NoSuchElementException("Team member with ID $id not found.")
         }
         teamMemberMapper.toResponseDto(member)
     }

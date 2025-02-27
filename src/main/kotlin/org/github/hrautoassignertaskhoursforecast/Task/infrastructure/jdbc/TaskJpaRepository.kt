@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
 @Repository
-interface TaskRepository : JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
+interface TaskJpaRepository : JpaRepository<Task, Long>, JpaSpecificationExecutor<Task> {
 
     fun findByTaskName(name: String): Task?
 

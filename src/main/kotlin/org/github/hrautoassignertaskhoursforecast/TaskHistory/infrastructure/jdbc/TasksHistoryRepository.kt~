@@ -66,12 +66,8 @@ class TasksHistoryRepository(private val tasksHistoryJpaRepository: TasksHistory
         tasksHistoryJpaRepository.existsById(id)
     }
 
-    suspend fun updateStateAndEndedAt(historyName:String, newState:String, spendingDays: Float?, newEndedAt: LocalDate?) = withContext(Dispatchers.IO) {
+    suspend fun updateStateAndEndedAt(historyName:String, newState:String, spendingDays: Float?, newEndedAt: LocalDate?)  = withContext(Dispatchers.IO) {
         tasksHistoryJpaRepository.updateStateAndEndedAt(historyName, newState, spendingDays, newEndedAt)
-    }
-
-    suspend fun updateStateAndStartedAtAndEndedAt(historyName:String, newState:String, spendingDays: Float?, newStartedAt: LocalDate?, newEndedAt: LocalDate?) = withContext(Dispatchers.IO) {
-        tasksHistoryJpaRepository.UpdateStateAndSpendingDaysAndStartedAtAndEndedAt(historyName, newState, spendingDays, newStartedAt, newEndedAt)
     }
 
     suspend fun save(taskHistory: TasksHistory): TasksHistory = withContext(Dispatchers.IO) {

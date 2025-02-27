@@ -7,6 +7,7 @@ import org.github.hrautoassignertaskhoursforecast.taskHistory.application.servic
 
 import org.github.hrautoassignertaskhoursforecast.taskHistory.application.service.TasksHistoryService
 import org.github.hrautoassignertaskhoursforecast.global.TaskState
+import org.github.hrautoassignertaskhoursforecast.teamMembers.application.service.TeamMemberRankingService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -17,7 +18,8 @@ import java.time.LocalDate
 class TasksHistoryController(
     private val tasksHistoryService: TasksHistoryService,
     private val tasksHistoryManipulator: TasksHistoryManipulator,
-    private val tasksHistoryMapper: TasksHistoryMapper
+    private val tasksHistoryMapper: TasksHistoryMapper,
+    private val teamMemberRankingService: TeamMemberRankingService
 ) {
     @GetMapping
     suspend fun findAll(): ResponseEntity<List<TasksHistoryResponse>> {
@@ -34,17 +36,35 @@ class TasksHistoryController(
 
     @PutMapping
     suspend fun updateAchievementsScore(
-        @RequestParam historyName: String      // 히스토리 이름
+        @RequestParam historyName: String      // 존재하는 히스토리 이름
     ): ResponseEntity<String> {
         return try {
             // 점수 업데이트 로직 호출
-            tasksHistoryManipulator.updateTeamMemberAchievementsScore(historyName)
+            teamMemberRankingService.updateTeamMemberAchievementsScore(historyName)
 
             // 성공 메시지 반환
             ResponseEntity.ok("Achievements scores updated successfully.")
         } catch (e: Exception) {
             // 예외 처리 및 에러 메시지 반환
             ResponseEntity.badRequest().body("Failed to update achievements scores: ${e.message}")
+        }
+    }
+
+    @PatchMapping("/update-state")
+    suspend fun patchTasksHistoryStateAndEndDate(
+        @RequestParam historyName: String,
+        @RequestParam(required = false) state: TaskState?,
+        @RequestParam(required = false) endedAt: LocalDate?
+    ): ResponseEntity<String> {
+        return try {
+            val updated = tasksHistoryService. updateStateAndEndDate(historyName, state, endedAt)
+            if (updated) {
+                ResponseEntity.ok("Task history partially updated successfully.")
+            } else {
+                ResponseEntity.badRequest().body("Task history not found.")
+            }
+        } catch (e: Exception) {
+            ResponseEntity.internalServerError().body("Error updating task history: ${e.message}")
         }
     }
 

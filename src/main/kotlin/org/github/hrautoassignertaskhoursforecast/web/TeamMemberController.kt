@@ -2,6 +2,7 @@ package org.github.hrautoassignertaskhoursforecast.web
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.github.hrautoassignertaskhoursforecast.global.exception.ResourceNotFoundException
 import org.github.hrautoassignertaskhoursforecast.task.application.TaskMapper
 import org.github.hrautoassignertaskhoursforecast.task.infrastructure.jdbc.TaskRepository
 import org.github.hrautoassignertaskhoursforecast.teamMembers.application.dto.TeamMemberRequestDTO
@@ -123,9 +124,7 @@ class TeamMemberController(
         @RequestParam NonFilterByLevel: Boolean
     ): ResponseEntity<List<Map<String, Any>>> {
         val task = withContext(Dispatchers.IO) {
-            taskRepository.findById(taskId).orElseThrow {
-                NoSuchElementException("Selected Task not found with id: $taskId")
-            }
+            taskRepository.findById(taskId)
         }
 
         val selectedTask = taskMapper.toResponseDto(task)

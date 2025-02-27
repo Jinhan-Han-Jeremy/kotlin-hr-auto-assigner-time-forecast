@@ -4,6 +4,7 @@ import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.Ana
 import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.WorkStreamResponse
 import org.github.hrautoassignertaskhoursforecast.workStream.application.service.WorkStreamService
 import org.github.hrautoassignertaskhoursforecast.global.exception.BadRequestException
+import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.WorkStreamResponseWithTasks
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -23,7 +24,7 @@ class WorkStreamController(private val workStreamService: WorkStreamService) {
     @GetMapping("/analyzingworkstream")
     suspend fun analyzingWorkStream(@RequestParam workInfo: String): ResponseEntity<AnalyzedWorkStreamResponse> {
 
-        val response = workStreamService.analyzedWorkStream(workInfo)
+        val response = workStreamService.analyzedWorkStream(workInfo, false)
         return ResponseEntity.ok(response)
     }
 
@@ -37,12 +38,11 @@ class WorkStreamController(private val workStreamService: WorkStreamService) {
     suspend fun assignTasksAndWorkInfo(
         @RequestParam workInfo: String,
         @RequestParam firstId: Long,
-        @RequestParam secondId: Long,
-        @RequestParam thirdId: Long
-    ): ResponseEntity<WorkStreamResponse> {
-        // 컨트롤러에서는 예외 발생 시 바로 throw
+        @RequestParam(required = false) secondId: Long?, //nullable
+        @RequestParam(required = false) thirdId: Long? //nullable
+    ): ResponseEntity<WorkStreamResponseWithTasks> {
 
-        val idList = listOf(firstId, secondId, thirdId)
+        val idList = listOfNotNull(firstId, secondId, thirdId) // null 값 제외
         print("id list : "+ idList)
 
         if (workInfo.isBlank()) {
@@ -52,4 +52,23 @@ class WorkStreamController(private val workStreamService: WorkStreamService) {
         val response = workStreamService.tasksAndWorkInfoAssignInTasksHistory(workInfo, idList)
         return ResponseEntity.ok(response)
     }
+
+    @PostMapping("/automated-assign")
+    suspend fun automatedAssignTasksAndWorkInfo(
+        @RequestParam workInfo: String,
+        ): ResponseEntity<WorkStreamResponseWithTasks> {
+        // 컨트롤러에서는 예외 발생 시 바로 throw
+
+        val autoAnalyzing = workStreamService.analyzedWorkStream(workInfo, true)
+
+        val ids = autoAnalyzing.analyzedTasks.map { it.id }.take(3)
+
+        if (workInfo.isBlank()) {
+            throw BadRequestException("workInfo cannot be blank.")
+        }
+
+        val response = workStreamService.tasksAndWorkInfoAssignInTasksHistory(workInfo, ids)
+        return ResponseEntity.ok(response)
+    }
+
 }

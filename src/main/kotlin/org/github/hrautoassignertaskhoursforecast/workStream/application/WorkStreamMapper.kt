@@ -1,9 +1,6 @@
 package org.github.hrautoassignertaskhoursforecast.workStream.application
 
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.AnalyzedWorkStreamResponse
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.TaskPairDto
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.WorkStreamRequest
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.WorkStreamResponse
+import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.*
 import org.github.hrautoassignertaskhoursforecast.workStream.domain.entity.WorkStream
 import org.springframework.stereotype.Component
 
@@ -20,6 +17,15 @@ class WorkStreamMapper {
         return WorkStreamResponse(
             id = entity.id,
             workstream = entity.workstream,
+            availableJobs = entity.availableJobs
+        )
+    }
+
+    fun toResponseWithTasksDto(entity: WorkStream, tasksNames: List<String>): WorkStreamResponseWithTasks {
+        return WorkStreamResponseWithTasks(
+            id = entity.id,
+            workstream = entity.workstream,
+            assignedTasksNames = tasksNames,
             availableJobs = entity.availableJobs
         )
     }

@@ -58,7 +58,7 @@ class TrieRecommender(private val wordTrie: WordTrie) {
         val recommended = targetPairs
             .filter { it.second >= 0.1 }
             .sortedByDescending { it.second }
-            .take(6)
+            .take(5)
             .map { it.first }
 
         println("Trie 기반 추천 작업: $recommended")

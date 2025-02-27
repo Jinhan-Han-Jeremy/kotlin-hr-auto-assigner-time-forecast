@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import org.github.hrautoassignertaskhoursforecast.task.application.dto.TaskSearchDTO
 import org.github.hrautoassignertaskhoursforecast.task.domain.entity.Task
 import org.github.hrautoassignertaskhoursforecast.global.exception.ResourceNotFoundException
+import org.github.hrautoassignertaskhoursforecast.taskHistory.infrastructure.jdbc.TasksHistoryRepository
 import org.springframework.data.jpa.domain.Specification
 
 import org.springframework.stereotype.Service
@@ -17,84 +18,104 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class TaskService(
     private val taskRepository: TaskRepository,
-    private val taskMapper: TaskMapper
+    private val taskMapper: TaskMapper,
+    private val tasksHistoryRepository: TasksHistoryRepository,
 ) {
 
     /**
      * 모든 Task 조회 */
     @Transactional(readOnly = true)
-    suspend fun findAllTasks(): List<TaskResponseDTO> =
-        withContext(Dispatchers.IO) {
-
-            taskRepository.findAll().map { taskMapper.toResponseDto(it) }
-        }
+    suspend fun findAllTasks(): List<TaskResponseDTO> {
+        return taskRepository.findAll().map { taskMapper.toResponseDto(it) }
+    }
 
     /**
      * 새로운 작업 생성 */
     @Transactional
-    suspend fun createTask(requestDTO: TaskRequestDTO): TaskResponseDTO =
-        withContext(Dispatchers.IO) {
-
+    suspend fun createTask(requestDTO: TaskRequestDTO): TaskResponseDTO {
         val newTaskEntity = taskMapper.toEntity(requestDTO)
         val savedTask = taskRepository.save(newTaskEntity)
-        taskMapper.toResponseDto(savedTask)
+        return taskMapper.toResponseDto(savedTask)
     }
+
     /**
      * 작업 업데이트 */
     @Transactional
-    suspend fun updateTask(id: Long, requestDTO: TaskRequestDTO): TaskResponseDTO =
-        withContext(Dispatchers.IO) {
+    suspend fun updateTask(id: Long, requestDTO: TaskRequestDTO): TaskResponseDTO {
+        val existingTask = taskRepository.findById(id)
 
-            val existingTask = taskRepository.findById(id)
-                .orElseThrow { NoSuchElementException("Task with ID $id not found") }
+        existingTask.updateTask(
+            name = requestDTO.taskName,
+            difficulty = requestDTO.difficulty,
+            employeeRoles = requestDTO.toRoleTypes(),
+            requirementsList = requestDTO.requirements
+        )
 
-            existingTask.updateTask(
-                name = requestDTO.taskName,
-                difficulty = requestDTO.difficulty,
-                employeeRoles = requestDTO.toRoleTypes(),
-                requirementsList = requestDTO.requirements
-            )
-
-            val savedTask = taskRepository.save(existingTask)
-            taskMapper.toResponseDto(savedTask)
-        }
+        val savedTask = taskRepository.save(existingTask)
+        return taskMapper.toResponseDto(savedTask)
+    }
 
     /**
      * 작업 삭제 */
     @Transactional
-    suspend fun deleteTask(id: Long) =
-        withContext(Dispatchers.IO) {
-
+    suspend fun deleteTask(id: Long){
             val task = taskRepository.findById(id)
-                .orElseThrow { NoSuchElementException("Task with ID $id not found") }
             taskRepository.delete(task)
         }
 
     /**
      * ID로 Task 조회 */
     @Transactional(readOnly = true)
-    suspend fun findTaskById(id: Long): TaskResponseDTO =
-        withContext(Dispatchers.IO) {
-
-            taskRepository.findById(id)
-                .map { taskMapper.toResponseDto(it) }
-                .orElseThrow { NoSuchElementException("Task with ID $id not found") }
-        }
-
-    /**
-     * 이름으로 Task 조회 */
-    suspend fun findTaskByName(name: String): TaskResponseDTO =
-        withContext(Dispatchers.IO) {
-
-        val task = taskRepository.findByTaskName(name)
-            ?: throw ResourceNotFoundException("Task with name $name not found")
-        taskMapper.toResponseDto(task)
+    suspend fun findTaskById(id: Long): TaskResponseDTO {
+        val task = taskRepository.findById(id)  // Task 객체 가져오기
+        return taskMapper.toResponseDto(task)   // DTO 변환 후 반환
     }
 
     /**
-     * 이름으로 Task id 조회 */
-    suspend fun findIdsByTaskNames(names: List<String>): List<Long> =
-        withContext(Dispatchers.IO) {
+     * 이름으로 Task 조회 */
+    suspend fun findTaskByName(name: String): TaskResponseDTO {
+
+        val task = taskRepository.findByTaskName(name)
+            ?: throw ResourceNotFoundException("Task with name $name not found")
+
+        return taskMapper.toResponseDto(task)
+    }
+
+    //difficulty를 기준으로 작업이름을 배열
+    suspend fun targetedTaskNamesInTasksHistory(
+        selectedTaskNames: List<String>
+    ): List<String> {
+        // 실제 존재하는 Task만 골라서 selectedTasks 리스트로 수집
+        val selectedTasks = mutableListOf<TaskResponseDTO>()
+
+        selectedTaskNames.forEach {
+                selectedTaskName ->
+            // tasksHistory에 존재하는지 확인 (없으면 예외 or 건너뛰기)
+            val existingTasksHistory = tasksHistoryRepository.findByName(selectedTaskName)
+
+            if (existingTasksHistory == null) {
+                println("TasksHistory '$selectedTaskName' not found in DB") // 로그 추가
+                throw ResourceNotFoundException("TasksHistory with name '$selectedTaskName' not found")
+            }
+
+            //존재하는 작업을 task로 추출
+            val taskResponse = taskRepository.findByTaskName(existingTasksHistory.name)
+                ?.let { taskMapper.toResponseDto(it) }
+                ?: throw ResourceNotFoundException("Tasks with name '${existingTasksHistory.name}' not found")
+            selectedTasks.add(taskResponse)
+        }
+
+        // difficulty 기준으로 내림차순 정렬 후
+        val sortedTaskNames: List<String> = selectedTasks
+            .sortedByDescending { it.difficulty } // difficulty 기준 내림차순
+            .map { it.taskName }                  // 정렬된 목록에서 taskName 만 추출
+
+        return sortedTaskNames
+    }
+
+    /**
+     * 이름들로 Task ids 조회 */
+    suspend fun findIdsByTaskNames(names: List<String>): List<Long> {
 
         val ids = taskRepository.findIdsByTaskNames(names)
 
@@ -107,22 +128,21 @@ class TaskService(
             throw ResourceNotFoundException("Tasks not found for names: ${missingNames.joinToString(", ")}")
         }
 
-        ids
+        return ids
     }
 
     /**
      * 특정 직무(Role)에 해당하는 Task들 찾기 */
     @Transactional(readOnly = true)
-    suspend fun findTasksByRole(roleType: RoleType): List<TaskResponseDTO> =
-        withContext(Dispatchers.IO) {
+    suspend fun findTasksByRole(roleType: RoleType): List<TaskResponseDTO>{
 
-        taskRepository.findAll()
+        return taskRepository.findAll()
             .filter { it.employeeRoles.roles.contains(roleType) }
             .map { taskMapper.toResponseDto(it) }
     }
 
     @Transactional(readOnly = true)
-    suspend fun searchTasksByInput(criteria: TaskSearchDTO): List<TaskResponseDTO> = withContext(Dispatchers.IO) {
+    suspend fun searchTasksByInput(criteria: TaskSearchDTO): List<TaskResponseDTO>{
         var spec: Specification<Task> = Specification.where(null)
 
         //taskName 조건
@@ -149,26 +169,20 @@ class TaskService(
         }
 
         // employeeRoles 조건
-        criteria.employeeRoles
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { roles ->
-                spec = spec.and(
-                    Specification<Task> { root, _, cb ->
-                        // 커스텀 VO이지만, DB에는 단일 컬럼 employee_role 로 저장됨
-                        // JPA 입장에선 'employeeRoles'라는 하나의 필드(=문자열)로 접근 가능
-                        val path = root.get<String>("employeeRoles")
-
-                        // OR 조건 (roles 중 하나라도 포함되면 매칭)
-                        val orPredicates = roles.map { role ->
-                            cb.like(
-                                cb.lower(path),
-                                "%${role.lowercase()}%"
-                            )
-                        }
-                        cb.or(*orPredicates.toTypedArray())
+        criteria.employeeRoles?.takeIf { it.isNotEmpty() }?.let {
+            roles ->
+            spec = spec.and(
+                Specification<Task> { root, _, cb ->
+                    // 커스텀 VO이지만, DB에는 단일 컬럼 employee_role 로 저장됨
+                    val path = root.get<String>("employeeRoles")
+                    // OR 조건 (roles 중 하나라도 포함되면 매칭)
+                    val orPredicates = roles.map { role ->
+                        cb.like(cb.lower(path), "%${role.lowercase()}%")
                     }
-                )
-            }
+                    cb.or(*orPredicates.toTypedArray())
+                }
+            )
+        }
 
         // (4) requirements 조건
         criteria.requirements
@@ -194,23 +208,22 @@ class TaskService(
         println("최종 Specification: $spec")
 
         // 조건에 맞는 Task 엔티티 목록 조회
-        val tasks = taskRepository.findAll(spec)
+        val tasks = taskRepository.findAllBySpec(spec)
 
         // Task -> TaskResponseDTO 변환 후 반환
-        return@withContext tasks.map { taskMapper.toResponseDto(it) }
+        return tasks.map { taskMapper.toResponseDto(it) }
     }
 
     /**
      * 특정 난이도 작업 조회 */
     @Transactional(readOnly = true)
-    suspend fun findTasksByDifficulty(difficulty: Int): List<TaskResponseDTO> =
-        withContext(Dispatchers.IO) {
+    suspend fun findTasksByDifficulty(difficulty: Int): List<TaskResponseDTO> {
 
         if (difficulty < 0) {
             throw IllegalArgumentException("Difficulty must be non-negative")
         }
 
         val tasks = taskRepository.findAllByDifficulty(difficulty)
-        tasks.map { taskMapper.toResponseDto(it) }
+        return tasks.map { taskMapper.toResponseDto(it) }
     }
 }

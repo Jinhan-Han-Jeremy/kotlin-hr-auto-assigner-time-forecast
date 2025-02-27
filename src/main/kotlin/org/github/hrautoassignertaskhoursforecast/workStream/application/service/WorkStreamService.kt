@@ -5,15 +5,13 @@ import kotlinx.coroutines.withContext
 
 import org.github.hrautoassignertaskhoursforecast.taskHistory.application.dto.TasksHistoryRequest
 import org.github.hrautoassignertaskhoursforecast.workStream.application.WorkStreamMapper
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.AnalyzedWorkStreamResponse
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.TaskPairDto
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.WorkStreamRequest
-import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.WorkStreamResponse
 import org.github.hrautoassignertaskhoursforecast.workStream.infrastructure.jdbc.WorkStreamRepository
 import org.github.hrautoassignertaskhoursforecast.global.FastApiService
 import org.github.hrautoassignertaskhoursforecast.global.RoleType
 import org.github.hrautoassignertaskhoursforecast.global.TaskState
 import org.github.hrautoassignertaskhoursforecast.global.exception.ResourceNotFoundException
+import org.github.hrautoassignertaskhoursforecast.task.domain.entity.Task
+import org.github.hrautoassignertaskhoursforecast.workStream.application.dto.*
 import org.springframework.stereotype.Service
 
 @Service
@@ -40,60 +38,60 @@ class WorkStreamService(
             workStreamRepository.findAll().map { workStreamMapper.toResponseDto(it) }
         }
 
-    /** FastAPI를 호출하여 분석된 추천 Task 목록 받기
-     */
-    private suspend fun recommendTasksByFastApi(workInfo: String): List<String> {
-        val taskNames = fastApiService.getTaskNamesFromAnalyzedTexts(workInfo)
-        println("Text 분석 추천 작업: $taskNames")
-        return taskNames
+    // db에 분석된 새로운 task들 할당
+    suspend fun tasksAndWorkInfoAssignInTasksHistory(workInfo: String, ids: List<Long>): WorkStreamResponseWithTasks {
+        // 순차적으로 Tasks 조회
+        val tasks = taskProcessorFacade.getTasksByIds(ids)
+        val tasksNames: List<String> = tasks.map { it.taskName } // 미래에 taskName 리스트
+
+        println("tasksAndWorkInfoAssignInTasksHistory tasks: $tasks")
+
+        // TaskHistoryRequest 리스트 생성 (분리된 함수 사용)
+        val taskHistoryRequests = createTaskHistoryRequests(tasks)
+
+        // TaskHistory 할당 (순차 실행)
+        taskProcessorFacade.createTaskHistoriesByRequests(taskHistoryRequests)
+
+        val distinctEmployeeRoles = tasks.flatMap { it.employeeRoles.roles }.distinct()
+
+        //WorkStream 생성 (순차 실행)
+        return createWorkStream(workInfo, distinctEmployeeRoles, tasksNames)
     }
 
-    // db에 분석된 새로운 task들 할당
-    suspend fun tasksAndWorkInfoAssignInTasksHistory(workInfo: String, ids: List<Long>):  WorkStreamResponse =
-        withContext(Dispatchers.IO) {
-            // Tasks 조회
-            val tasks = taskProcessorFacade.getTasksByIds(ids)
-
-            print("tasksAndWorkInfoAssignInTasksHistory tasks:$tasks")
-
-            val taskHistoryRequests: List<TasksHistoryRequest> =
-                tasks.map { task ->
-                    TasksHistoryRequest(
-                        name = task.taskName,
-                        teamMembers = null,
-                        employeeRoles = task.employeeRoles.roles.map { it.displayName },
-                        spendingDays = null,
-                        expectedDays = null,
-                        state = TaskState.NOT_STARTED,
-                        requirementsSatisfied = taskProcessorFacade.getRequirementsSatisfiedById(task.id),
-                        startedAt = null,
-                        endedAt = null
-                        )
-                }
-
-            val distinctEmployeeRoles = tasks.flatMap { it.employeeRoles.roles }.distinct()
-
-            //TaskHistory 할당
-            taskProcessorFacade.createTaskHistoriesByRequests(taskHistoryRequests)
-
-            // WorkStream 생성
-            createWorkStream(workInfo, distinctEmployeeRoles)
-
+    //분리된 TaskHistoryRequest 생성 함수
+    private suspend fun createTaskHistoryRequests(tasks: List<Task>): List<TasksHistoryRequest> {
+        // 순차 실행: `getRequirementsSatisfiedByChanges(task.id)` 실행 후 결과 저장
+        val requirementsResults = tasks.map { task ->
+            taskProcessorFacade.getRequirementsSatisfiedByChanges(task.id)
         }
 
-    suspend fun createWorkStream(workInfo: String, distinctEmployeeRoles: List<RoleType>):  WorkStreamResponse =
-        withContext(Dispatchers.IO) {
-
-            val workStreamRequest = WorkStreamRequest(
-                workInfo,
-                distinctEmployeeRoles.toString()
+        return tasks.mapIndexed { index, task ->
+            TasksHistoryRequest(
+                name = task.taskName,
+                teamMembers = null,
+                employeeRoles = task.employeeRoles.roles.map { it.displayName },
+                spendingDays = null,
+                expectedDays = null,
+                state = TaskState.NOT_STARTED,
+                requirementsSatisfied = requirementsResults[index], //순차 실행 후 값 적용
+                startedAt = null,
+                endedAt = null
             )
-
-            val newTaskEntity = workStreamMapper.toEntity(workStreamRequest)
-            val savedWorkedStream = workStreamRepository.save(newTaskEntity)
-
-            workStreamMapper.toResponseDto(savedWorkedStream)
         }
+    }
+
+
+    suspend fun createWorkStream(workInfo: String, distinctEmployeeRoles: List<RoleType>, tasksNames: List<String>): WorkStreamResponseWithTasks {
+        val workStreamRequest = WorkStreamRequest(
+            workInfo,
+            distinctEmployeeRoles.toString()
+        )
+
+        val newTaskEntity = workStreamMapper.toEntity(workStreamRequest)
+        val savedWorkedStream = workStreamRepository.save(newTaskEntity)
+
+        return workStreamMapper.toResponseWithTasksDto(savedWorkedStream, tasksNames)
+    }
 
     suspend fun getTaskPairsByNames(names: List<String>):  List<TaskPairDto> =
         withContext(Dispatchers.IO) {
@@ -110,23 +108,34 @@ class WorkStreamService(
         }
 
         // ID와 이름을 매핑하여 TaskDto 리스트 생성
-        ids.zip(names).map { (id, name) -> TaskPairDto(id = id, name = name) }
+        ids.zip(foundNames).map { (id, name) -> TaskPairDto(id = id, name = name) }
+    }
+
+    //Fastapi cosine similarity와 TfidfVectorizer를 활용하여 분석
+    private suspend fun getIdsNamesPairsByFastApi(workInfo: String):  List<TaskPairDto> {
+        // FastAPI를 통한 작업 추출
+        val recommendedNamesByFastApi = fastApiService.recommendTasksByFastApi(workInfo)
+        val idsNamesPairsByFastApi = getTaskPairsByNames(recommendedNamesByFastApi)
+        return idsNamesPairsByFastApi
     }
 
     /** 최종으로 세 함수들을 연달아 호출하여 결과를 합치고,
      * WorkStreamResponse 형태로 매핑하여 반환
      */
-    suspend fun analyzedWorkStream(workInfo: String): AnalyzedWorkStreamResponse {
-        // DB에서 TaskName 목록 가져오기
-        val unsavedTasksNamesInWorkStream = fetchTaskNamesFromDb()
+    suspend fun analyzedWorkStream(workInfo: String, autoAssignAndAnalysis: Boolean): AnalyzedWorkStreamResponse {
 
-        // Trie 기반 상위 작업 추출
-        val recommendedNamesByTrie = taskProcessorFacade.recommendTasksByTrie(workInfo, unsavedTasksNamesInWorkStream)
-        val idsNamesPairsByTrie = getTaskPairsByNames(recommendedNamesByTrie)
+        var idsNamesPairsByTrie: List<TaskPairDto> = emptyList() // var로 변경
+        if (!autoAssignAndAnalysis) {
+            // DB에서 TaskName 목록 가져오기
+            val unsavedTasksNamesInWorkStream = fetchTaskNamesFromDb()
+
+            // Trie 기반 상위 작업 추출
+            val recommendedNamesByTrie = taskProcessorFacade.recommendTasksByTrie(workInfo, unsavedTasksNamesInWorkStream)
+            idsNamesPairsByTrie = getTaskPairsByNames(recommendedNamesByTrie) // 정상적으로 할당 가능
+        }
 
         // FastAPI를 통한 작업 추출
-        val recommendedByFastApi = recommendTasksByFastApi(workInfo)
-        val idsNamesPairsByFastApi = getTaskPairsByNames(recommendedByFastApi)
+        val idsNamesPairsByFastApi: List<TaskPairDto> = getIdsNamesPairsByFastApi(workInfo)
 
         // 두 결과 병합
         val mergedTasks = (idsNamesPairsByTrie + idsNamesPairsByFastApi).distinctBy { it.id }
@@ -139,6 +148,7 @@ class WorkStreamService(
             tasksByTextAnalysis = idsNamesPairsByFastApi,
             analyzedTasks = mergedTasks
         )
+
     }
 
     private fun extractPrefix(workInfo: String): String {

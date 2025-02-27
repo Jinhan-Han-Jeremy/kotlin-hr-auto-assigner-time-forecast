@@ -1,7 +1,7 @@
 package org.github.hrautoassignertaskhoursforecast.task.domain.entity.vo
 
 data class Requirements(
-    private var requirementsRaw: String? = null
+    private var requirementsRaw: String? = ""
 ) {
     val requirementsList: List<String>
         get() = requirementsRaw

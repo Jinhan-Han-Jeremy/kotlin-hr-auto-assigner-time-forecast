@@ -48,7 +48,6 @@ services:
       - redis-data:/data
     networks:
       - hr-auto-assigner-network
-    command: ["redis-server", "--appendonly", "yes"]  # Redis 데이터 영구 저장 활성화
 
 #  rabbitmq:
 #    image: rabbitmq:3-management

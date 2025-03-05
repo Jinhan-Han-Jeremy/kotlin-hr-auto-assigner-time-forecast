@@ -14,11 +14,8 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
     database-platform: org.hibernate.dialect.MySQLDialect
 
-  data:
-    redis:
-      host: redis
-      port: 6379
-      timeout: 6000ms
+  redis:
+    url: redis://redis:6379
 
 
 server:

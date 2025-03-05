@@ -34,30 +34,37 @@ class TeamMemberRankingService(
 
     /**
      * Redis에서 상위 팀원 ID를 조회하고 DB에서 해당 팀원 정보를 가져온 후 변환하여 반환한다.
-     * @param redisKey Redis Sorted Set의 키 (주간/월간 구분)
+     * redisKey Redis Sorted Set의 키 (주간/월간 구분)
      */
     private fun getTopAchievements(redisKey: String): List<TeamMemberResponseDTO> {
         val ops = redisTemplate.opsForZSet() // Redis의 ZSet 연산 객체
 
         // Redis에서 상위 3명의 팀원 ID를 내림차순으로 조회
-        val top3Ids = ops.reverseRange(redisKey, 0, 2) ?: emptySet<Any>()
+        val top3Ids = ops.reverseRange(redisKey, 0, 2) ?: emptySet()
 
         // 데이터가 없는 경우 빈 리스트 반환
         if (top3Ids.isEmpty()) {
             return emptyList()
         }
 
-        // 조회된 팀원 ID를 Long으로 변환하고 DB에서 팀원 정보 가져오기
-        val members = teamMemberRepository.findAllById(top3Ids.map { it.toString().toLong() })
+        // 조회된 ID가 JSON 문자열로 저장되었을 가능성이 있으므로 변환
+        val memberIds = top3Ids.mapNotNull {
+            when (it) {
+                is String -> it.toLongOrNull()  // JSON이 문자열로 저장되었을 경우
+                is Number -> it.toLong()        // 혹시라도 Number 타입으로 저장되었을 경우
+                else -> null
+            }
+        }
 
-        // DTO로 변환하여 반환
+        val members = teamMemberRepository.findAllById(memberIds)
+
         return members.map { teamMemberMapper.toResponseDto(it) }
     }
 
 
     /**
      * 월간 순위 데이터를 Redis에 업데이트하는 메서드
-     * - 스케줄링: 매월 1일 0시(UTC) 실행
+     * - 스케줄링: 매월 1일 0시UTC 실행
      * - Redis의 기존 월간 키 데이터를 삭제한다.
      * - DB에서 모든 팀원 데이터를 가져와 achievementsScore를 기준으로 Redis Sorted Set에 저장한다.
      */
@@ -72,9 +79,11 @@ class TeamMemberRankingService(
         // DB에서 모든 팀원 정보를 가져오기
         val members = teamMemberRepository.findAll()
 
-        // 팀원의 achievementsScore를 Redis Sorted Set에 추가
+        // 팀원의 achievementsScore를 Redis Set에 추가
         members.forEach { member ->
-            ops.add(MONTHLY_KEY, member.id.toString(), member.achievementsScore.toDouble())
+            // achievementsScore를 JSON 문자열로 변환하여 저장
+            val scoreJson = member.achievementsScore.toString()
+            ops.add(MONTHLY_KEY, member.id.toString(), scoreJson.toDouble())
         }
     }
 

@@ -1,4 +1,5 @@
 
+
 # kotlin-hr-auto-assigner-time-forecast
 참조 링크
 [https://www.notion.so/Jinhan-146f3ccd4fb580ee839ffa32706b1607](https://ossified-pin-d86.notion.site/Jinhan-146f3ccd4fb580ee839ffa32706b1607?pvs=4)
@@ -14,7 +15,7 @@ tasks(업무), Ttasks_history(할당된 업무 기록), team_member(멤버) 3개
 
 ### * 작업자들의 가용 인원 확인
 
-### (주의!!) 본 프로젝트 실행하기 이전에 해야할 것 : db 생성기+텍스트 분석기 실행 링크
+### (주의!!) 본 프로젝트 실행하기 이전에 해야할 fast api : db 생성기+텍스트 분석기 기능 링크
 - https://github.com/Jinhan-Han-Jeremy/fast-api-text-analysis-for-hr
 - DB 생성기+텍스트 분석기 포트 : 8000, mysql 8.0 서버 포트 : 3306
 - 메인 서버 어플리케이션 포트 : 8050

@@ -1,6 +1,6 @@
 
 # kotlin-hr-auto-assigner-time-forecast
-참조 링크
+### 코드 기능, 기술 구조 및 설명 링크
 https://www.notion.so/146f3ccd4fb580d5845ae013583d412e
 ### [HR tech]업무 자동 할당 및 업무 완수 예측 API에서 구체적인 설명 첨부
 

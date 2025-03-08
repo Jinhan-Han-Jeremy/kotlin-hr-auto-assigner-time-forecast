@@ -1,4 +1,0 @@
-package org.github.hrautoassignertaskhoursforecast.TaskHistory.application.service
-
-class TaskHistoryManipulator {
-}

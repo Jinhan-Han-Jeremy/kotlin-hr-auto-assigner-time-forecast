@@ -2,7 +2,7 @@
 
 # kotlin-hr-auto-assigner-time-forecast
 참조 링크
-[https://www.notion.so/Jinhan-146f3ccd4fb580ee839ffa32706b1607](https://ossified-pin-d86.notion.site/Jinhan-146f3ccd4fb580ee839ffa32706b1607?pvs=4)
+https://www.notion.so/146f3ccd4fb580d5845ae013583d412e
 ### [HR tech]업무 자동 할당 및 업무 완수 예측 API에서 구체적인 설명 첨부
 
 tasks(업무), Ttasks_history(할당된 업무 기록), team_member(멤버) 3개의 기록들을 수치화하여 

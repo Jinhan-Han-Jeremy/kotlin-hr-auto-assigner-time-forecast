@@ -5,8 +5,8 @@
 https://www.notion.so/146f3ccd4fb580d5845ae013583d412e
 ### [HR tech]업무 자동 할당 및 업무 완수 예측 API에서 구체적인 설명 첨부
 
-tasks(업무), Ttasks_history(할당된 업무 기록), team_member(멤버) 3개의 기록들을 수치화하여 작업 스케쥴과 작업 기간 예측
-![image](https://github.com/user-attachments/assets/25fdab9b-dbf4-4f12-9f82-ec334efa6873)
+tasks(업무), Ttasks_history(할당된 업무 기록), team_member(멤버) 3개의 기록들을 수치화하여 작업 스케쥴 추출, 작업자 작업 능력 수치화, 작업 기간 예측
+![image](https://github.com/user-attachments/assets/75b63c69-839b-4ab3-81fe-1fc2ea374755)
 
 
 ### *WorkStream에 작성된 작업을 텍스트로 입력시 해당 작업을 정의된 작업들로 요약

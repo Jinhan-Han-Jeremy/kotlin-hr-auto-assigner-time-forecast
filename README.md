@@ -22,3 +22,9 @@ tasks(업무), Ttasks_history(할당된 업무 기록), team_member(멤버) 3개
 - https://github.com/Jinhan-Han-Jeremy/fast-api-text-analysis-for-hr
 - DB 생성기+텍스트 분석기 포트 : 8000, mysql 8.0 서버 포트 : 3306
 - 메인 서버 어플리케이션 포트 : 8050
+
+**핵심 활용 알고리즘 및 패턴**
+- **텍스트 분석 및 기능 :** cosine_similarity, TfidfVectorizer,
+Trie 알고리즘
+- **비동기 :** 코루틴 스코프
+- **작업 할당 최적화 :** MILP, 그리디 알고리즘**
